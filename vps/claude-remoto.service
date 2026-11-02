@@ -1,0 +1,18 @@
+# Sesión "lobby" de Claude Code siempre viva en ~/repos (tmux: sesión "claude", ventana "lobby").
+# Desde el móvil: app Claude → Code → sesión del VPS → "clona X y mételo a la fábrica".
+# /fabrica:init abre ventanas adicionales (una por proyecto) en esta misma sesión tmux.
+[Unit]
+Description=Claude Code Remote Control — lobby (tmux)
+After=network-online.target
+
+[Service]
+Type=forking
+WorkingDirectory=%h/repos
+Environment=PATH=%h/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/tmux new-session -d -s claude -n lobby "claude remote-control"
+ExecStop=/usr/bin/tmux kill-session -t claude
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

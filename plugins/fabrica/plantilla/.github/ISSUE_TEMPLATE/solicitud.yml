@@ -1,0 +1,19 @@
+name: Solicitud a la fábrica
+description: Pide una funcionalidad o corrección. La fábrica empieza en la fase de requisitos.
+labels: ["fase:requisitos"]
+body:
+  - type: textarea
+    id: que
+    attributes:
+      label: ¿Qué necesitas?
+      description: Escribe como lo dirías por WhatsApp. El agente lo convertirá en requisitos.
+    validations: { required: true }
+  - type: textarea
+    id: porque
+    attributes:
+      label: ¿Para qué / para quién?
+  - type: dropdown
+    id: urgencia
+    attributes:
+      label: Urgencia
+      options: [Normal, Alta, Crítica]

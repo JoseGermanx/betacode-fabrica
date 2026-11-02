@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "FABRICA_MARKETPLACE_REPO": "TU_USUARIO/betacode-fabrica"
+  },
+  "extraKnownMarketplaces": {
+    "betacode": { "source": { "source": "github", "repo": "TU_USUARIO/betacode-fabrica" } }
+  },
+  "enabledPlugins": { "fabrica@betacode": true },
+  "permissions": {
+    "allow": [
+      "Bash(gh repo clone:*)",
+      "Bash(gh repo create:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh issue:*)",
+      "Bash(gh pr:*)",
+      "Bash(git:*)",
+      "Bash(tmux new-window:*)",
+      "Bash(tmux has-session:*)",
+      "Bash(mkdir -p /home/fabrica/repos/*)"
+    ],
+    "deny": ["Read(**/.env)", "Read(**/.env.*)", "Read(**/*.pem)"]
+  }
+}

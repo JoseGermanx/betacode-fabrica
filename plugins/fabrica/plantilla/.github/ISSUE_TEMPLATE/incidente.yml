@@ -1,0 +1,11 @@
+name: Incidente de producción
+description: Algo falla en producción. Lo analiza el agente de operaciones.
+labels: ["incidente", "fase:triage"]
+body:
+  - type: textarea
+    id: sintoma
+    attributes: { label: Síntoma observado }
+    validations: { required: true }
+  - type: input
+    id: url
+    attributes: { label: URL / servicio afectado }

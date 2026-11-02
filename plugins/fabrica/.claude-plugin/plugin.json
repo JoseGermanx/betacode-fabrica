@@ -1,0 +1,9 @@
+{
+  "name": "fabrica",
+  "version": "1.0.0",
+  "description": "Fábrica de software con agentes para el SDLC de 7 fases. Incluye /fabrica:init para clonar, crear o adoptar repos.",
+  "author": {
+    "name": "Betacode"
+  },
+  "license": "UNLICENSED"
+}

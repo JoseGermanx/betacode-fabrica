@@ -1,0 +1,14 @@
+{
+  "name": "betacode",
+  "owner": {
+    "name": "Betacode"
+  },
+  "plugins": [
+    {
+      "name": "fabrica",
+      "source": "./plugins/fabrica",
+      "description": "Fábrica de software con agentes: 7 fases, revisor, puertas humanas y bootstrap de repos (/fabrica:init)."
+    }
+  ],
+  "description": "Plugins de Betacode: fábrica de software con agentes."
+}

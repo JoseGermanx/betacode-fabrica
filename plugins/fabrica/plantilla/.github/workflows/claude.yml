@@ -1,0 +1,29 @@
+# Interacción libre: menciona @claude en cualquier issue o PR (también desde la app móvil de GitHub).
+name: Claude — menciones
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  claude:
+    if: contains(github.event.comment.body, '@claude') || contains(github.event.issue.body, '@claude')
+    runs-on: [self-hosted, fabrica]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: ${{ vars.FABRICA_MARKETPLACE }}   # p. ej. https://github.com/<usuario>/betacode-fabrica.git
+          plugins: "fabrica@betacode"

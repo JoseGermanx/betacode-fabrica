@@ -1,0 +1,31 @@
+# Fase 6: pipeline DETERMINISTA. Ningún agente despliega.
+# Puerta humana: configura el environment "produccion" con "Required reviewers" → apruebas desde la app de GitHub.
+name: Deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-produccion
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: produccion
+    steps:
+      - uses: actions/checkout@v4
+      - name: Desplegar
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KEY:  ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: ./scripts/deploy.sh
+      - name: Smoke test
+        run: curl -fsS --retry 5 --retry-delay 10 "${{ vars.HEALTHCHECK_URL }}" > /dev/null

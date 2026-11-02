@@ -1,0 +1,99 @@
+# Motor de la fábrica: cada etiqueta fase:* en un issue ejecuta la skill de esa fase en el VPS.
+# La decisión de avanzar es DETERMINISTA (paso "Puerta"), no la toma el modelo.
+name: Fábrica — fases
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: fabrica-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  fase:
+    if: startsWith(github.event.label.name, 'fase:')
+    runs-on: [self-hosted, fabrica]        # runner instalado en el VPS (ver vps/setup.sh)
+    timeout-minutes: 90
+    env:
+      N: ${{ github.event.issue.number }}
+      ETIQUETA: ${{ github.event.label.name }}
+      N8N_WEBHOOK: ${{ secrets.N8N_WEBHOOK }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mapear fase → skill
+        id: map
+        run: |
+          case "$ETIQUETA" in
+            fase:requisitos) echo "skill=requisitos" >> $GITHUB_OUTPUT; echo "siguiente=fase:diseno" >> $GITHUB_OUTPUT ;;
+            fase:diseno)     echo "skill=diseno"     >> $GITHUB_OUTPUT; echo "siguiente=fase:plan"   >> $GITHUB_OUTPUT ;;
+            fase:plan)       echo "skill=plan"       >> $GITHUB_OUTPUT; echo "siguiente=fase:build"  >> $GITHUB_OUTPUT ;;
+            fase:build)      echo "skill=construir"  >> $GITHUB_OUTPUT; echo "siguiente="            >> $GITHUB_OUTPUT ;;
+            fase:triage)     echo "skill=triage"     >> $GITHUB_OUTPUT; echo "siguiente="            >> $GITHUB_OUTPUT ;;
+            *) echo "Etiqueta desconocida $ETIQUETA"; exit 1 ;;
+          esac
+
+      - name: Preparar rama fabrica/N
+        run: |
+          git config user.name  "fabrica-bot"
+          git config user.email "fabrica-bot@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin "fabrica/$N" >/dev/null; then
+            git switch -c "fabrica/$N" --track "origin/fabrica/$N"
+          else
+            git switch -c "fabrica/$N"
+          fi
+          rm -f .fabrica/estado.json
+
+      - name: Ejecutar agente de la fase
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}   # o anthropic_api_key
+          plugin_marketplaces: ${{ vars.FABRICA_MARKETPLACE }}   # p. ej. https://github.com/<usuario>/betacode-fabrica.git
+          plugins: "fabrica@betacode"
+          prompt: "/fabrica:${{ steps.map.outputs.skill }} ${{ env.N }}"
+          claude_args: >-
+            --max-turns 80
+            --allowedTools "Read,Write,Edit,Glob,Grep,Task,Bash(gh issue:*),Bash(gh pr:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
+
+      - name: Puerta (decisión determinista)
+        env:
+          GH_TOKEN: ${{ secrets.FABRICA_PAT }}         # PAT: las etiquetas puestas con GITHUB_TOKEN no disparan workflows
+          GATE_SIEMPRE: ${{ vars.GATE_SIEMPRE }}        # "true" = aprobación humana en TODAS las fases
+          SIGUIENTE: ${{ steps.map.outputs.siguiente }}
+        run: |
+          f=.fabrica/estado.json
+          if [[ ! -f $f ]]; then resultado=escalar; riesgo=alto; motivo="El agente no dejó estado.json"
+          else
+            resultado=$(jq -r '.resultado // "escalar"' $f); riesgo=$(jq -r '.riesgo // "alto"' $f); motivo=$(jq -r '.motivo // ""' $f)
+          fi
+          echo "resultado=$resultado riesgo=$riesgo siguiente=$SIGUIENTE"
+          gh issue edit "$N" --remove-label "$ETIQUETA" || true
+
+          if [[ "$resultado" != "ok" ]]; then
+            gh issue edit "$N" --add-label escalado-humano
+            gh issue comment "$N" --body "🧑‍⚖️ **Escalado a humano** en \`$ETIQUETA\`: $motivo. Corrige/responde y vuelve a poner la etiqueta para reintentar."
+            exit 0
+          fi
+          [[ -z "$SIGUIENTE" ]] && exit 0      # build/triage terminan aquí (build abre PR)
+
+          if [[ "$riesgo" == "alto" || "$GATE_SIEMPRE" == "true" ]]; then
+            gh issue edit "$N" --add-label esperando-aprobacion
+            gh issue comment "$N" --body "⏸️ **Puerta humana** (riesgo: $riesgo). Revisa el artefacto en la rama \`fabrica/$N\`. Para continuar, añade la etiqueta \`$SIGUIENTE\`."
+          else
+            gh issue edit "$N" --add-label "$SIGUIENTE"
+          fi
+
+      - name: Notificar (opcional, n8n / Telegram / WhatsApp)
+        if: always() && env.N8N_WEBHOOK != ''
+        run: |
+          curl -fsS -X POST "$N8N_WEBHOOK" -H 'Content-Type: application/json' \
+            -d "{\"repo\":\"${{ github.repository }}\",\"issue\":$N,\"fase\":\"$ETIQUETA\",\"estado\":\"${{ job.status }}\"}" || true
