@@ -86,3 +86,14 @@ Este repo es a la vez un **marketplace** y el **plugin `fabrica`**. Se instala u
 - **Sesión lobby vs. sesión del repo:** Claude carga el `CLAUDE.md` y los settings de la carpeta donde **arranca**. Por eso `init` abre una ventana nueva en el repo en vez de trabajar desde el lobby.
 - **Modo CI (`--ci`)**: los workflows cargan el plugin con `plugin_marketplaces` y `plugins` de `claude-code-action`. Define la variable `FABRICA_MARKETPLACE` en el repo o en la organización con la URL `.git` de este repo. Requisitos (secrets, runner, environment `produccion`): ver el kit anterior. Runners self-hosted, solo en repos privados.
 - **Barandillas globales:** el hook del plugin bloquea en **todas** las sesiones el push a main, el force push, `.env` y el SQL destructivo. La restricción sobre `.github/` aplica solo en repos con la fábrica instalada. `init` crea el repo nuevo con `gh repo create --push`, que es el único push inicial a `main` permitido.
+
+## Runner en AlmaLinux/RHEL: dependencias de Playwright (una vez, como root)
+Los workflows instalan Node según `.nvmrc`, ejecutan `npm ci` y descargan Chromium con `npx playwright install chromium`, pero **sin `--with-deps`**, porque esa opción solo funciona en Debian/Ubuntu. Instala las librerías del sistema una sola vez:
+```bash
+dnf install -y nss nspr atk at-spi2-atk cups-libs libdrm libxkbcommon libXcomposite libXdamage \
+  libXrandr libXfixes libXext libX11 libxcb mesa-libgbm pango cairo alsa-lib libxshmfence
+```
+Para verificar, como el usuario del runner y después del primer run, este comando no debe imprimir nada:
+```bash
+ldd ~/.cache/ms-playwright/chromium_headless_shell-*/chrome-linux/headless_shell | grep "not found"
+```

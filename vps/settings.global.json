@@ -4,21 +4,35 @@
     "FABRICA_MARKETPLACE_REPO": "TU_USUARIO/betacode-fabrica"
   },
   "extraKnownMarketplaces": {
-    "betacode": { "source": { "source": "github", "repo": "TU_USUARIO/betacode-fabrica" } }
+    "betacode": {
+      "source": {
+        "source": "github",
+        "repo": "TU_USUARIO/betacode-fabrica"
+      }
+    }
   },
-  "enabledPlugins": { "fabrica@betacode": true },
+  "enabledPlugins": {
+    "fabrica@betacode": true
+  },
   "permissions": {
     "allow": [
+      "Bash(gh issue:*)",
+      "Bash(gh pr:*)",
       "Bash(gh repo clone:*)",
       "Bash(gh repo create:*)",
       "Bash(gh repo view:*)",
-      "Bash(gh issue:*)",
-      "Bash(gh pr:*)",
       "Bash(git:*)",
-      "Bash(tmux new-window:*)",
+      "Bash(mkdir -p /home/fabrica/repos/*)",
+      "Bash(mkdir:*)",
+      "Bash(node:*)",
+      "Bash(npx:*)",
       "Bash(tmux has-session:*)",
-      "Bash(mkdir -p /home/fabrica/repos/*)"
+      "Bash(tmux new-window:*)"
     ],
-    "deny": ["Read(**/.env)", "Read(**/.env.*)", "Read(**/*.pem)"]
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.pem)"
+    ]
   }
 }

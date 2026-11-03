@@ -56,6 +56,23 @@ jobs:
           rm -f .fabrica/estado.json .fabrica/.intentos-stop
           echo "$ETIQUETA" > .fabrica/en-curso     # activa el Stop hook exigir-estado.sh
 
+      - name: Node según .nvmrc
+        if: hashFiles('.nvmrc') != ''
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+
+      - name: Dependencias del proyecto
+        if: hashFiles('package-lock.json') != ''
+        run: npm ci
+
+      - name: Navegador de Playwright
+        if: hashFiles('playwright.config.*') != ''
+        # Sin --with-deps: en AlmaLinux las librerías del sistema se instalan una vez con dnf (ver README).
+        # El navegador queda en ~/.cache/ms-playwright del runner, así que solo se descarga la primera vez.
+        run: npx playwright install chromium
+
       - name: Ejecutar agente de la fase
         uses: anthropics/claude-code-action@v1
         with:
@@ -66,7 +83,7 @@ jobs:
           claude_args: >-
             --max-turns 120
             --disallowedTools "SendMessage"
-            --allowedTools "Read,Write,Edit,Glob,Grep,Agent,Task,Bash(gh issue:*),Bash(gh pr:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
+            --allowedTools "Read,Write,Edit,Glob,Grep,Agent,Task,Bash(gh issue:*),Bash(gh pr:*),Bash(git:*),Bash(npm:*),Bash(node:*),Bash(npx:*),Bash(mkdir:*),Bash(pytest:*),Bash(ruff:*)"
 
       - name: Puerta (decisión determinista)
         env:

@@ -1,0 +1,159 @@
+diff --git a/README.md b/README.md
+index fde5478..3dfb016 100644
+--- a/README.md
++++ b/README.md
+@@ -86,3 +86,14 @@ Este repo es a la vez un **marketplace** y el **plugin `fabrica`**. Se instala u
+ - **Sesión lobby vs. sesión del repo:** Claude carga el `CLAUDE.md` y los settings de la carpeta donde **arranca**. Por eso `init` abre una ventana nueva en el repo en vez de trabajar desde el lobby.
+ - **Modo CI (`--ci`)**: los workflows cargan el plugin con `plugin_marketplaces` y `plugins` de `claude-code-action`. Define la variable `FABRICA_MARKETPLACE` en el repo o en la organización con la URL `.git` de este repo. Requisitos (secrets, runner, environment `produccion`): ver el kit anterior. Runners self-hosted, solo en repos privados.
+ - **Barandillas globales:** el hook del plugin bloquea en **todas** las sesiones el push a main, el force push, `.env` y el SQL destructivo. La restricción sobre `.github/` aplica solo en repos con la fábrica instalada. `init` crea el repo nuevo con `gh repo create --push`, que es el único push inicial a `main` permitido.
++
++## Runner en AlmaLinux/RHEL: dependencias de Playwright (una vez, como root)
++Los workflows instalan Node según `.nvmrc`, ejecutan `npm ci` y descargan Chromium con `npx playwright install chromium`, pero **sin `--with-deps`**, porque esa opción solo funciona en Debian/Ubuntu. Instala las librerías del sistema una sola vez:
++```bash
++dnf install -y nss nspr atk at-spi2-atk cups-libs libdrm libxkbcommon libXcomposite libXdamage \
++  libXrandr libXfixes libXext libX11 libxcb mesa-libgbm pango cairo alsa-lib libxshmfence
++```
++Para verificar, como el usuario del runner y después del primer run, este comando no debe imprimir nada:
++```bash
++ldd ~/.cache/ms-playwright/chromium_headless_shell-*/chrome-linux/headless_shell | grep "not found"
++```
+diff --git a/plugins/fabrica/.claude-plugin/plugin.json b/plugins/fabrica/.claude-plugin/plugin.json
+index e92a75b..d13d802 100644
+--- a/plugins/fabrica/.claude-plugin/plugin.json
++++ b/plugins/fabrica/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "fabrica",
+-  "version": "1.1.0",
++  "version": "1.2.0",
+   "description": "Fábrica de software con agentes para el SDLC de 7 fases. Incluye /fabrica:init para clonar, crear o adoptar repos.",
+   "author": {
+     "name": "Betacode"
+diff --git a/plugins/fabrica/plantilla/.github/workflows/fabrica.yml b/plugins/fabrica/plantilla/.github/workflows/fabrica.yml
+index bbc3472..8e1392d 100644
+--- a/plugins/fabrica/plantilla/.github/workflows/fabrica.yml
++++ b/plugins/fabrica/plantilla/.github/workflows/fabrica.yml
+@@ -56,6 +56,23 @@ jobs:
+           rm -f .fabrica/estado.json .fabrica/.intentos-stop
+           echo "$ETIQUETA" > .fabrica/en-curso     # activa el Stop hook exigir-estado.sh
+ 
++      - name: Node según .nvmrc
++        if: hashFiles('.nvmrc') != ''
++        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
++        with:
++          node-version-file: .nvmrc
++          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
++
++      - name: Dependencias del proyecto
++        if: hashFiles('package-lock.json') != ''
++        run: npm ci
++
++      - name: Navegador de Playwright
++        if: hashFiles('playwright.config.*') != ''
++        # Sin --with-deps: en AlmaLinux las librerías del sistema se instalan una vez con dnf (ver README).
++        # El navegador queda en ~/.cache/ms-playwright del runner, así que solo se descarga la primera vez.
++        run: npx playwright install chromium
++
+       - name: Ejecutar agente de la fase
+         uses: anthropics/claude-code-action@v1
+         with:
+@@ -66,7 +83,7 @@ jobs:
+           claude_args: >-
+             --max-turns 120
+             --disallowedTools "SendMessage"
+-            --allowedTools "Read,Write,Edit,Glob,Grep,Agent,Task,Bash(gh issue:*),Bash(gh pr:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
++            --allowedTools "Read,Write,Edit,Glob,Grep,Agent,Task,Bash(gh issue:*),Bash(gh pr:*),Bash(git:*),Bash(npm:*),Bash(node:*),Bash(npx:*),Bash(mkdir:*),Bash(pytest:*),Bash(ruff:*)"
+ 
+       - name: Puerta (decisión determinista)
+         env:
+diff --git a/plugins/fabrica/plantilla/.github/workflows/revision-pr.yml b/plugins/fabrica/plantilla/.github/workflows/revision-pr.yml
+index f112391..59dddf1 100644
+--- a/plugins/fabrica/plantilla/.github/workflows/revision-pr.yml
++++ b/plugins/fabrica/plantilla/.github/workflows/revision-pr.yml
+@@ -20,6 +20,23 @@ jobs:
+     steps:
+       - uses: actions/checkout@v4
+         with: { fetch-depth: 0 }
++      - name: Node según .nvmrc
++        if: hashFiles('.nvmrc') != ''
++        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
++        with:
++          node-version-file: .nvmrc
++          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
++
++      - name: Dependencias del proyecto
++        if: hashFiles('package-lock.json') != ''
++        run: npm ci
++
++      - name: Navegador de Playwright
++        if: hashFiles('playwright.config.*') != ''
++        # Sin --with-deps: en AlmaLinux las librerías del sistema se instalan una vez con dnf (ver README).
++        # El navegador queda en ~/.cache/ms-playwright del runner, así que solo se descarga la primera vez.
++        run: npx playwright install chromium
++
+       - name: Número de issue
+         id: n
+         run: echo "n=${GITHUB_HEAD_REF#fabrica/}" >> $GITHUB_OUTPUT
+@@ -33,4 +50,4 @@ jobs:
+             1. Usa el subagente revisor sobre `git diff origin/main...HEAD` y publica sus hallazgos como revisión del PR.
+             2. Ejecuta /fabrica:verificar ${{ steps.n.outputs.n }} y publica la matriz CA→test→resultado.
+             3. Si hay hallazgos bloqueantes, pide cambios (request changes); si no, comenta "✅ Revisor: APROBADO".
+-          claude_args: --max-turns 60 --disallowedTools "SendMessage" --allowedTools "Read,Glob,Grep,Agent,Task,Bash(gh pr:*),Bash(gh issue:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
++          claude_args: --max-turns 60 --disallowedTools "SendMessage" --allowedTools "Read,Glob,Grep,Agent,Task,Bash(gh pr:*),Bash(gh issue:*),Bash(git:*),Bash(npm:*),Bash(node:*),Bash(npx:*),Bash(mkdir:*),Bash(pytest:*),Bash(ruff:*)"
+diff --git a/plugins/fabrica/plantilla/docs/conocimiento/fabrica.md b/plugins/fabrica/plantilla/docs/conocimiento/fabrica.md
+index 498500b..16bd78c 100644
+--- a/plugins/fabrica/plantilla/docs/conocimiento/fabrica.md
++++ b/plugins/fabrica/plantilla/docs/conocimiento/fabrica.md
+@@ -1,4 +1,4 @@
+-<!-- fabrica-version: 1.1.0 — archivo gestionado por el plugin fabrica; no editar a mano (se sobrescribe al actualizar) -->
++<!-- fabrica-version: 1.2.0 — archivo gestionado por el plugin fabrica; no editar a mano (se sobrescribe al actualizar) -->
+ # Fábrica de software (Betacode)
+ 
+ Este repositorio funciona como una **fábrica de software basada en agentes**. Cada cambio pasa por 7 fases y cada artefacto se revisa antes de avanzar.
+diff --git a/vps/settings.global.json b/vps/settings.global.json
+index dbfd4b2..ea841cc 100644
+--- a/vps/settings.global.json
++++ b/vps/settings.global.json
+@@ -4,21 +4,35 @@
+     "FABRICA_MARKETPLACE_REPO": "TU_USUARIO/betacode-fabrica"
+   },
+   "extraKnownMarketplaces": {
+-    "betacode": { "source": { "source": "github", "repo": "TU_USUARIO/betacode-fabrica" } }
++    "betacode": {
++      "source": {
++        "source": "github",
++        "repo": "TU_USUARIO/betacode-fabrica"
++      }
++    }
++  },
++  "enabledPlugins": {
++    "fabrica@betacode": true
+   },
+-  "enabledPlugins": { "fabrica@betacode": true },
+   "permissions": {
+     "allow": [
++      "Bash(gh issue:*)",
++      "Bash(gh pr:*)",
+       "Bash(gh repo clone:*)",
+       "Bash(gh repo create:*)",
+       "Bash(gh repo view:*)",
+-      "Bash(gh issue:*)",
+-      "Bash(gh pr:*)",
+       "Bash(git:*)",
+-      "Bash(tmux new-window:*)",
++      "Bash(mkdir -p /home/fabrica/repos/*)",
++      "Bash(mkdir:*)",
++      "Bash(node:*)",
++      "Bash(npx:*)",
+       "Bash(tmux has-session:*)",
+-      "Bash(mkdir -p /home/fabrica/repos/*)"
++      "Bash(tmux new-window:*)"
+     ],
+-    "deny": ["Read(**/.env)", "Read(**/.env.*)", "Read(**/*.pem)"]
++    "deny": [
++      "Read(**/.env)",
++      "Read(**/.env.*)",
++      "Read(**/*.pem)"
++    ]
+   }
+ }
