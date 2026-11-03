@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
 
+concurrency:
+  group: revision-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true   # cada push nuevo del agente cancela la revisión anterior
+
 permissions:
   contents: read
   pull-requests: write
@@ -43,6 +47,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_bots: "claude"   # los PR de la fábrica los abre la app de Claude (actor claude[bot])
           plugin_marketplaces: ${{ vars.FABRICA_MARKETPLACE }}   # p. ej. https://github.com/<usuario>/betacode-fabrica.git
           plugins: "fabrica@betacode"
           prompt: |
