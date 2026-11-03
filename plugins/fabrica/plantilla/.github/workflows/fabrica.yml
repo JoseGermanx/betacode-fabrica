@@ -25,6 +25,7 @@ jobs:
       N: ${{ github.event.issue.number }}
       ETIQUETA: ${{ github.event.label.name }}
       N8N_WEBHOOK: ${{ secrets.N8N_WEBHOOK }}
+      CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"   # sin subagentes/comandos en segundo plano en CI
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,7 +52,9 @@ jobs:
           else
             git switch -c "fabrica/$N"
           fi
-          rm -f .fabrica/estado.json
+          mkdir -p .fabrica
+          rm -f .fabrica/estado.json .fabrica/.intentos-stop
+          echo "$ETIQUETA" > .fabrica/en-curso     # activa el Stop hook exigir-estado.sh
 
       - name: Ejecutar agente de la fase
         uses: anthropics/claude-code-action@v1
@@ -61,8 +64,9 @@ jobs:
           plugins: "fabrica@betacode"
           prompt: "/fabrica:${{ steps.map.outputs.skill }} ${{ env.N }}"
           claude_args: >-
-            --max-turns 80
-            --allowedTools "Read,Write,Edit,Glob,Grep,Task,Bash(gh issue:*),Bash(gh pr:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
+            --max-turns 120
+            --disallowedTools "SendMessage"
+            --allowedTools "Read,Write,Edit,Glob,Grep,Agent,Task,Bash(gh issue:*),Bash(gh pr:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
 
       - name: Puerta (decisión determinista)
         env:
@@ -71,6 +75,7 @@ jobs:
           SIGUIENTE: ${{ steps.map.outputs.siguiente }}
         run: |
           f=.fabrica/estado.json
+          rm -f .fabrica/en-curso .fabrica/.intentos-stop
           if [[ ! -f $f ]]; then resultado=escalar; riesgo=alto; motivo="El agente no dejó estado.json"
           else
             resultado=$(jq -r '.resultado // "escalar"' $f); riesgo=$(jq -r '.riesgo // "alto"' $f); motivo=$(jq -r '.motivo // ""' $f)

@@ -1,0 +1,292 @@
+diff --git a/plugins/fabrica/.claude-plugin/plugin.json b/plugins/fabrica/.claude-plugin/plugin.json
+index a22e4f9..e92a75b 100644
+--- a/plugins/fabrica/.claude-plugin/plugin.json
++++ b/plugins/fabrica/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "fabrica",
+-  "version": "1.0.0",
++  "version": "1.1.0",
+   "description": "Fábrica de software con agentes para el SDLC de 7 fases. Incluye /fabrica:init para clonar, crear o adoptar repos.",
+   "author": {
+     "name": "Betacode"
+diff --git a/plugins/fabrica/hooks/exigir-estado.sh b/plugins/fabrica/hooks/exigir-estado.sh
+new file mode 100755
+index 0000000..33e72d8
+--- /dev/null
++++ b/plugins/fabrica/hooks/exigir-estado.sh
+@@ -0,0 +1,15 @@
++#!/usr/bin/env bash
++# Stop hook: si hay una fase de la fábrica en curso (.fabrica/en-curso, lo crea el workflow),
++# impide cerrar el turno hasta que exista un .fabrica/estado.json válido. exit 2 = "no pares, sigue".
++# Máximo 3 bloqueos: después deja terminar y el workflow escala (falta estado = escalar).
++D="${CLAUDE_PROJECT_DIR:-.}/.fabrica"
++[[ -f "$D/en-curso" ]] || exit 0
++if [[ -f "$D/estado.json" ]] && jq -e '.resultado and .fase and .riesgo' "$D/estado.json" >/dev/null 2>&1; then
++  exit 0
++fi
++n=$(( $(cat "$D/.intentos-stop" 2>/dev/null || echo 0) + 1 )); echo $n > "$D/.intentos-stop"
++[[ $n -gt 3 ]] && exit 0
++echo "No cierres el turno: falta .fabrica/estado.json válido (fase: $(cat "$D/en-curso")). \
++Si quedan rondas, termínalas con Agents nuevos en primer plano. Si no puedes completar, escribe \
++{\"issue\":N,\"fase\":\"...\",\"resultado\":\"escalar\",\"riesgo\":\"alto\",\"motivo\":\"...\"} y termina." >&2
++exit 2
+diff --git a/plugins/fabrica/hooks/hooks.json b/plugins/fabrica/hooks/hooks.json
+index 3efdd49..198714f 100644
+--- a/plugins/fabrica/hooks/hooks.json
++++ b/plugins/fabrica/hooks/hooks.json
+@@ -3,13 +3,33 @@
+     "PreToolUse": [
+       {
+         "matcher": "Bash|Edit|Write|MultiEdit",
+-        "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guardia.sh" }]
++        "hooks": [
++          {
++            "type": "command",
++            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guardia.sh"
++          }
++        ]
+       }
+     ],
+     "PostToolUse": [
+       {
+         "matcher": "Edit|Write|MultiEdit",
+-        "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/post-edicion.sh" }]
++        "hooks": [
++          {
++            "type": "command",
++            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/post-edicion.sh"
++          }
++        ]
++      }
++    ],
++    "Stop": [
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/exigir-estado.sh"
++          }
++        ]
+       }
+     ]
+   }
+diff --git a/plugins/fabrica/plantilla/.github/workflows/fabrica.yml b/plugins/fabrica/plantilla/.github/workflows/fabrica.yml
+index c242ac8..bbc3472 100644
+--- a/plugins/fabrica/plantilla/.github/workflows/fabrica.yml
++++ b/plugins/fabrica/plantilla/.github/workflows/fabrica.yml
+@@ -25,6 +25,7 @@ jobs:
+       N: ${{ github.event.issue.number }}
+       ETIQUETA: ${{ github.event.label.name }}
+       N8N_WEBHOOK: ${{ secrets.N8N_WEBHOOK }}
++      CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"   # sin subagentes/comandos en segundo plano en CI
+     steps:
+       - uses: actions/checkout@v4
+         with:
+@@ -51,7 +52,9 @@ jobs:
+           else
+             git switch -c "fabrica/$N"
+           fi
+-          rm -f .fabrica/estado.json
++          mkdir -p .fabrica
++          rm -f .fabrica/estado.json .fabrica/.intentos-stop
++          echo "$ETIQUETA" > .fabrica/en-curso     # activa el Stop hook exigir-estado.sh
+ 
+       - name: Ejecutar agente de la fase
+         uses: anthropics/claude-code-action@v1
+@@ -61,8 +64,9 @@ jobs:
+           plugins: "fabrica@betacode"
+           prompt: "/fabrica:${{ steps.map.outputs.skill }} ${{ env.N }}"
+           claude_args: >-
+-            --max-turns 80
+-            --allowedTools "Read,Write,Edit,Glob,Grep,Task,Bash(gh issue:*),Bash(gh pr:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
++            --max-turns 120
++            --disallowedTools "SendMessage"
++            --allowedTools "Read,Write,Edit,Glob,Grep,Agent,Task,Bash(gh issue:*),Bash(gh pr:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
+ 
+       - name: Puerta (decisión determinista)
+         env:
+@@ -71,6 +75,7 @@ jobs:
+           SIGUIENTE: ${{ steps.map.outputs.siguiente }}
+         run: |
+           f=.fabrica/estado.json
++          rm -f .fabrica/en-curso .fabrica/.intentos-stop
+           if [[ ! -f $f ]]; then resultado=escalar; riesgo=alto; motivo="El agente no dejó estado.json"
+           else
+             resultado=$(jq -r '.resultado // "escalar"' $f); riesgo=$(jq -r '.riesgo // "alto"' $f); motivo=$(jq -r '.motivo // ""' $f)
+diff --git a/plugins/fabrica/plantilla/.github/workflows/revision-pr.yml b/plugins/fabrica/plantilla/.github/workflows/revision-pr.yml
+index 91ef3f9..f112391 100644
+--- a/plugins/fabrica/plantilla/.github/workflows/revision-pr.yml
++++ b/plugins/fabrica/plantilla/.github/workflows/revision-pr.yml
+@@ -15,6 +15,8 @@ jobs:
+     if: startsWith(github.head_ref, 'fabrica/')
+     runs-on: [self-hosted, fabrica]
+     timeout-minutes: 45
++    env:
++      CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
+     steps:
+       - uses: actions/checkout@v4
+         with: { fetch-depth: 0 }
+@@ -31,4 +33,4 @@ jobs:
+             1. Usa el subagente revisor sobre `git diff origin/main...HEAD` y publica sus hallazgos como revisión del PR.
+             2. Ejecuta /fabrica:verificar ${{ steps.n.outputs.n }} y publica la matriz CA→test→resultado.
+             3. Si hay hallazgos bloqueantes, pide cambios (request changes); si no, comenta "✅ Revisor: APROBADO".
+-          claude_args: --max-turns 50 --allowedTools "Read,Glob,Grep,Task,Bash(gh pr:*),Bash(gh issue:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
++          claude_args: --max-turns 60 --disallowedTools "SendMessage" --allowedTools "Read,Glob,Grep,Agent,Task,Bash(gh pr:*),Bash(gh issue:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
+diff --git a/plugins/fabrica/plantilla/docs/conocimiento/fabrica.md b/plugins/fabrica/plantilla/docs/conocimiento/fabrica.md
+index 444155d..498500b 100644
+--- a/plugins/fabrica/plantilla/docs/conocimiento/fabrica.md
++++ b/plugins/fabrica/plantilla/docs/conocimiento/fabrica.md
+@@ -1,4 +1,4 @@
+-<!-- fabrica-version: 1.0.0 — archivo gestionado por el plugin fabrica; no editar a mano (se sobrescribe al actualizar) -->
++<!-- fabrica-version: 1.1.0 — archivo gestionado por el plugin fabrica; no editar a mano (se sobrescribe al actualizar) -->
+ # Fábrica de software (Betacode)
+ 
+ Este repositorio funciona como una **fábrica de software basada en agentes**. Cada cambio pasa por 7 fases y cada artefacto se revisa antes de avanzar.
+diff --git a/plugins/fabrica/scripts/instalar.sh b/plugins/fabrica/scripts/instalar.sh
+index 01a4af5..a8f8706 100755
+--- a/plugins/fabrica/scripts/instalar.sh
++++ b/plugins/fabrica/scripts/instalar.sh
+@@ -55,7 +55,9 @@ fi
+ 
+ # 5) .gitignore
+ touch .gitignore
+-grep -qxF '.fabrica/estado.json' .gitignore || echo '.fabrica/estado.json' >> .gitignore
++for l in .fabrica/estado.json .fabrica/en-curso .fabrica/.intentos-stop; do
++  grep -qxF "$l" .gitignore || echo "$l" >> .gitignore
++done
+ 
+ # 6) .claude/settings.json del repo: declara el marketplace/plugin para cualquiera que abra el repo
+ MK="${FABRICA_MARKETPLACE_REPO:-}"
+diff --git a/plugins/fabrica/skills/construir/SKILL.md b/plugins/fabrica/skills/construir/SKILL.md
+index 17600c2..7c83d94 100644
+--- a/plugins/fabrica/skills/construir/SKILL.md
++++ b/plugins/fabrica/skills/construir/SKILL.md
+@@ -10,9 +10,16 @@ argument-hint: <número de issue>
+ 3. El revisor revisa el diff completo (`git diff main...HEAD`).
+ 4. Abre un PR `fabrica/$ARGUMENTS` → `main` con: `Closes #$ARGUMENTS`, tabla CA→tests, riesgo, y el veredicto del revisor.
+ 
++## Reglas de ejecución (obligatorias, en local y en CI)
++1. Cada subagente (autor, revisor o corrector) se lanza con la herramienta **Agent en primer plano**: nunca con `run_in_background`, y esperas su resultado antes de seguir.
++2. **Cada ronda es un Agent nuevo.** Nunca uses `SendMessage` para continuar un agente anterior. En el prompt de la ronda pasa la ruta del artefacto y los hallazgos del revisor **literales**.
++3. El **revisor de cada ronda también es una instancia nueva** (independencia: no revisa con el contexto de la ronda anterior).
++4. No uses comandos en segundo plano (`&`, `nohup`) ni esperes eventos externos.
++5. **No cierres el turno sin haber escrito `.fabrica/estado.json`.** Es lo último que haces. Si algo falla, se agotan las rondas o no puedes terminar, escríbelo igual con `"resultado": "escalar"` y el motivo.
++
+ ## Bucle de revisión (obligatorio)
+ 1. Lanza el subagente **revisor** (plugin fabrica) sobre el artefacto producido.
+-2. Si el veredicto es CAMBIOS: corrige con el subagente **implementador** y vuelve a revisar. Máximo 2 rondas.
++2. Si el veredicto es CAMBIOS: lanza un Agent **nuevo** del subagente **implementador** con los hallazgos literales para corregir, y luego un revisor **nuevo**. Máximo 2 rondas.
+ 3. Si tras 2 rondas sigue en CAMBIOS ⇒ `resultado: "escalar"` y comenta en el issue los hallazgos pendientes.
+ 
+ ## Cierre
+diff --git a/plugins/fabrica/skills/diseno/SKILL.md b/plugins/fabrica/skills/diseno/SKILL.md
+index 7e38ff9..fd90bce 100644
+--- a/plugins/fabrica/skills/diseno/SKILL.md
++++ b/plugins/fabrica/skills/diseno/SKILL.md
+@@ -8,9 +8,16 @@ argument-hint: <número de issue>
+ 1. Lee `docs/specs/issue-$ARGUMENTS/requisitos.md` en la rama `fabrica/$ARGUMENTS`.
+ 2. Usa el subagente **arquitecto** para producir `diseno.md` en la misma carpeta.
+ 
++## Reglas de ejecución (obligatorias, en local y en CI)
++1. Cada subagente (autor, revisor o corrector) se lanza con la herramienta **Agent en primer plano**: nunca con `run_in_background`, y esperas su resultado antes de seguir.
++2. **Cada ronda es un Agent nuevo.** Nunca uses `SendMessage` para continuar un agente anterior. En el prompt de la ronda pasa la ruta del artefacto y los hallazgos del revisor **literales**.
++3. El **revisor de cada ronda también es una instancia nueva** (independencia: no revisa con el contexto de la ronda anterior).
++4. No uses comandos en segundo plano (`&`, `nohup`) ni esperes eventos externos.
++5. **No cierres el turno sin haber escrito `.fabrica/estado.json`.** Es lo último que haces. Si algo falla, se agotan las rondas o no puedes terminar, escríbelo igual con `"resultado": "escalar"` y el motivo.
++
+ ## Bucle de revisión (obligatorio)
+ 1. Lanza el subagente **revisor** (plugin fabrica) sobre el artefacto producido.
+-2. Si el veredicto es CAMBIOS: corrige con el subagente **arquitecto** y vuelve a revisar. Máximo 2 rondas.
++2. Si el veredicto es CAMBIOS: lanza un Agent **nuevo** del subagente **arquitecto** con los hallazgos literales para corregir, y luego un revisor **nuevo**. Máximo 2 rondas.
+ 3. Si tras 2 rondas sigue en CAMBIOS ⇒ `resultado: "escalar"` y comenta en el issue los hallazgos pendientes.
+ 
+ ## Cierre
+diff --git a/plugins/fabrica/skills/plan/SKILL.md b/plugins/fabrica/skills/plan/SKILL.md
+index fd9bb56..cb199ac 100644
+--- a/plugins/fabrica/skills/plan/SKILL.md
++++ b/plugins/fabrica/skills/plan/SKILL.md
+@@ -9,9 +9,16 @@ argument-hint: <número de issue>
+ 2. Usa el subagente **planificador** para producir `plan.md`.
+ 3. Tras aprobar el revisor, crea una casilla de verificación por tarea en un comentario del issue (o sub-issues si son > 8 tareas).
+ 
++## Reglas de ejecución (obligatorias, en local y en CI)
++1. Cada subagente (autor, revisor o corrector) se lanza con la herramienta **Agent en primer plano**: nunca con `run_in_background`, y esperas su resultado antes de seguir.
++2. **Cada ronda es un Agent nuevo.** Nunca uses `SendMessage` para continuar un agente anterior. En el prompt de la ronda pasa la ruta del artefacto y los hallazgos del revisor **literales**.
++3. El **revisor de cada ronda también es una instancia nueva** (independencia: no revisa con el contexto de la ronda anterior).
++4. No uses comandos en segundo plano (`&`, `nohup`) ni esperes eventos externos.
++5. **No cierres el turno sin haber escrito `.fabrica/estado.json`.** Es lo último que haces. Si algo falla, se agotan las rondas o no puedes terminar, escríbelo igual con `"resultado": "escalar"` y el motivo.
++
+ ## Bucle de revisión (obligatorio)
+ 1. Lanza el subagente **revisor** (plugin fabrica) sobre el artefacto producido.
+-2. Si el veredicto es CAMBIOS: corrige con el subagente **planificador** y vuelve a revisar. Máximo 2 rondas.
++2. Si el veredicto es CAMBIOS: lanza un Agent **nuevo** del subagente **planificador** con los hallazgos literales para corregir, y luego un revisor **nuevo**. Máximo 2 rondas.
+ 3. Si tras 2 rondas sigue en CAMBIOS ⇒ `resultado: "escalar"` y comenta en el issue los hallazgos pendientes.
+ 
+ ## Cierre
+diff --git a/plugins/fabrica/skills/requisitos/SKILL.md b/plugins/fabrica/skills/requisitos/SKILL.md
+index d20e4dd..50bbe29 100644
+--- a/plugins/fabrica/skills/requisitos/SKILL.md
++++ b/plugins/fabrica/skills/requisitos/SKILL.md
+@@ -9,9 +9,16 @@ argument-hint: <número de issue>
+ 2. Usa el subagente **analista-requisitos** para producir `docs/specs/issue-$ARGUMENTS/requisitos.md`.
+ 3. Si hay preguntas abiertas que bloquean el diseño, publícalas en el issue y marca `resultado: "escalar"`.
+ 
++## Reglas de ejecución (obligatorias, en local y en CI)
++1. Cada subagente (autor, revisor o corrector) se lanza con la herramienta **Agent en primer plano**: nunca con `run_in_background`, y esperas su resultado antes de seguir.
++2. **Cada ronda es un Agent nuevo.** Nunca uses `SendMessage` para continuar un agente anterior. En el prompt de la ronda pasa la ruta del artefacto y los hallazgos del revisor **literales**.
++3. El **revisor de cada ronda también es una instancia nueva** (independencia: no revisa con el contexto de la ronda anterior).
++4. No uses comandos en segundo plano (`&`, `nohup`) ni esperes eventos externos.
++5. **No cierres el turno sin haber escrito `.fabrica/estado.json`.** Es lo último que haces. Si algo falla, se agotan las rondas o no puedes terminar, escríbelo igual con `"resultado": "escalar"` y el motivo.
++
+ ## Bucle de revisión (obligatorio)
+ 1. Lanza el subagente **revisor** (plugin fabrica) sobre el artefacto producido.
+-2. Si el veredicto es CAMBIOS: corrige con el subagente **analista-requisitos** y vuelve a revisar. Máximo 2 rondas.
++2. Si el veredicto es CAMBIOS: lanza un Agent **nuevo** del subagente **analista-requisitos** con los hallazgos literales para corregir, y luego un revisor **nuevo**. Máximo 2 rondas.
+ 3. Si tras 2 rondas sigue en CAMBIOS ⇒ `resultado: "escalar"` y comenta en el issue los hallazgos pendientes.
+ 
+ ## Cierre
+diff --git a/plugins/fabrica/skills/triage/SKILL.md b/plugins/fabrica/skills/triage/SKILL.md
+index e6802a1..6fd3c0e 100644
+--- a/plugins/fabrica/skills/triage/SKILL.md
++++ b/plugins/fabrica/skills/triage/SKILL.md
+@@ -9,9 +9,16 @@ argument-hint: <número de issue>
+ 2. Usa el subagente **operaciones** para diagnosticar.
+ 3. Si la corrección es clara, crea un issue nuevo con la etiqueta `fase:requisitos` enlazado al incidente.
+ 
++## Reglas de ejecución (obligatorias, en local y en CI)
++1. Cada subagente (autor, revisor o corrector) se lanza con la herramienta **Agent en primer plano**: nunca con `run_in_background`, y esperas su resultado antes de seguir.
++2. **Cada ronda es un Agent nuevo.** Nunca uses `SendMessage` para continuar un agente anterior. En el prompt de la ronda pasa la ruta del artefacto y los hallazgos del revisor **literales**.
++3. El **revisor de cada ronda también es una instancia nueva** (independencia: no revisa con el contexto de la ronda anterior).
++4. No uses comandos en segundo plano (`&`, `nohup`) ni esperes eventos externos.
++5. **No cierres el turno sin haber escrito `.fabrica/estado.json`.** Es lo último que haces. Si algo falla, se agotan las rondas o no puedes terminar, escríbelo igual con `"resultado": "escalar"` y el motivo.
++
+ ## Bucle de revisión (obligatorio)
+ 1. Lanza el subagente **revisor** (plugin fabrica) sobre el artefacto producido.
+-2. Si el veredicto es CAMBIOS: corrige con el subagente **operaciones** y vuelve a revisar. Máximo 2 rondas.
++2. Si el veredicto es CAMBIOS: lanza un Agent **nuevo** del subagente **operaciones** con los hallazgos literales para corregir, y luego un revisor **nuevo**. Máximo 2 rondas.
+ 3. Si tras 2 rondas sigue en CAMBIOS ⇒ `resultado: "escalar"` y comenta en el issue los hallazgos pendientes.
+ 
+ ## Cierre
+diff --git a/plugins/fabrica/skills/verificar/SKILL.md b/plugins/fabrica/skills/verificar/SKILL.md
+index aeab032..7a0b740 100644
+--- a/plugins/fabrica/skills/verificar/SKILL.md
++++ b/plugins/fabrica/skills/verificar/SKILL.md
+@@ -8,9 +8,16 @@ argument-hint: <número de issue>
+ 1. Usa el subagente **verificador** para correr tests, lint y escaneos y construir la matriz CA→test→resultado.
+ 2. Publica la matriz como comentario en el PR del issue.
+ 
++## Reglas de ejecución (obligatorias, en local y en CI)
++1. Cada subagente (autor, revisor o corrector) se lanza con la herramienta **Agent en primer plano**: nunca con `run_in_background`, y esperas su resultado antes de seguir.
++2. **Cada ronda es un Agent nuevo.** Nunca uses `SendMessage` para continuar un agente anterior. En el prompt de la ronda pasa la ruta del artefacto y los hallazgos del revisor **literales**.
++3. El **revisor de cada ronda también es una instancia nueva** (independencia: no revisa con el contexto de la ronda anterior).
++4. No uses comandos en segundo plano (`&`, `nohup`) ni esperes eventos externos.
++5. **No cierres el turno sin haber escrito `.fabrica/estado.json`.** Es lo último que haces. Si algo falla, se agotan las rondas o no puedes terminar, escríbelo igual con `"resultado": "escalar"` y el motivo.
++
+ ## Bucle de revisión (obligatorio)
+ 1. Lanza el subagente **revisor** (plugin fabrica) sobre el artefacto producido.
+-2. Si el veredicto es CAMBIOS: corrige con el subagente **verificador** y vuelve a revisar. Máximo 2 rondas.
++2. Si el veredicto es CAMBIOS: lanza un Agent **nuevo** del subagente **verificador** con los hallazgos literales para corregir, y luego un revisor **nuevo**. Máximo 2 rondas.
+ 3. Si tras 2 rondas sigue en CAMBIOS ⇒ `resultado: "escalar"` y comenta en el issue los hallazgos pendientes.
+ 
+ ## Cierre

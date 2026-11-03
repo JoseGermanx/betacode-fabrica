@@ -55,7 +55,9 @@ fi
 
 # 5) .gitignore
 touch .gitignore
-grep -qxF '.fabrica/estado.json' .gitignore || echo '.fabrica/estado.json' >> .gitignore
+for l in .fabrica/estado.json .fabrica/en-curso .fabrica/.intentos-stop; do
+  grep -qxF "$l" .gitignore || echo "$l" >> .gitignore
+done
 
 # 6) .claude/settings.json del repo: declara el marketplace/plugin para cualquiera que abra el repo
 MK="${FABRICA_MARKETPLACE_REPO:-}"

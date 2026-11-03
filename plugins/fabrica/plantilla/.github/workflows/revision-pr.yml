@@ -15,6 +15,8 @@ jobs:
     if: startsWith(github.head_ref, 'fabrica/')
     runs-on: [self-hosted, fabrica]
     timeout-minutes: 45
+    env:
+      CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -31,4 +33,4 @@ jobs:
             1. Usa el subagente revisor sobre `git diff origin/main...HEAD` y publica sus hallazgos como revisión del PR.
             2. Ejecuta /fabrica:verificar ${{ steps.n.outputs.n }} y publica la matriz CA→test→resultado.
             3. Si hay hallazgos bloqueantes, pide cambios (request changes); si no, comenta "✅ Revisor: APROBADO".
-          claude_args: --max-turns 50 --allowedTools "Read,Glob,Grep,Task,Bash(gh pr:*),Bash(gh issue:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
+          claude_args: --max-turns 60 --disallowedTools "SendMessage" --allowedTools "Read,Glob,Grep,Agent,Task,Bash(gh pr:*),Bash(gh issue:*),Bash(git:*),Bash(npm:*),Bash(pytest:*),Bash(ruff:*)"
