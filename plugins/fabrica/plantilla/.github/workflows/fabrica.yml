@@ -39,6 +39,7 @@ jobs:
             fase:diseno)     echo "skill=diseno"     >> $GITHUB_OUTPUT; echo "siguiente=fase:plan"   >> $GITHUB_OUTPUT ;;
             fase:plan)       echo "skill=plan"       >> $GITHUB_OUTPUT; echo "siguiente=fase:build"  >> $GITHUB_OUTPUT ;;
             fase:build)      echo "skill=construir"  >> $GITHUB_OUTPUT; echo "siguiente="            >> $GITHUB_OUTPUT ;;
+            fase:simple)     echo "skill=simple"     >> $GITHUB_OUTPUT; echo "siguiente="            >> $GITHUB_OUTPUT ;;
             fase:triage)     echo "skill=triage"     >> $GITHUB_OUTPUT; echo "siguiente="            >> $GITHUB_OUTPUT ;;
             *) echo "Etiqueta desconocida $ETIQUETA"; exit 1 ;;
           esac
