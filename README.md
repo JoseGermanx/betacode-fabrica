@@ -26,6 +26,7 @@ Este repo es a la vez un **marketplace** y el **plugin `fabrica`**. Se instala u
             ▼
 ┌─ 3. Trabajo diario en la sesión del repo ────────────────────────────────┐
 │ /fabrica:requisitos N → diseno → plan → construir → verificar             │
+│ /fabrica:simple N      → carril rápido (tareas simples, un solo paso)     │
 │ (o automático vía GitHub Actions si se instaló con --ci)                  │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
@@ -44,6 +45,10 @@ Este repo es a la vez un **marketplace** y el **plugin `fabrica`**. Se instala u
 | `.gitignore` | proyecto | Agrega `.fabrica/estado.json`. |
 | `.github/`, `scripts/deploy.sh` | proyecto | Solo con `--ci` y sin sobrescribir lo que ya tengas. |
 | Etiquetas `fase:*` | GitHub | Se crean si el repo tiene remoto. |
+
+### Carril rápido para tareas simples
+
+Para tareas simples (una landing, un script, un CRUD básico) no hace falta pasar por las 7 fases: usa `/fabrica:simple N` o la etiqueta `fase:simple`. Consolida requisitos + diseño + plan + build en un solo paso, revisa con un agente ligero y abre el PR. Si la tarea toca auth, pagos, datos personales, migraciones destructivas, infraestructura o `.github/`, usa el flujo estándar (`fase:requisitos`).
 
 ### Casos que resuelve
 

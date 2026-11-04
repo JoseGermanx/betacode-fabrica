@@ -1,7 +1,7 @@
-<!-- fabrica-version: 1.2.1 — archivo gestionado por el plugin fabrica; no editar a mano (se sobrescribe al actualizar) -->
+<!-- fabrica-version: 1.3.0 — archivo gestionado por el plugin fabrica; no editar a mano (se sobrescribe al actualizar) -->
 # Fábrica de software (Betacode)
 
-Este repositorio funciona como una **fábrica de software basada en agentes**. Cada cambio pasa por 7 fases y cada artefacto se revisa antes de avanzar.
+Este repositorio funciona como una **fábrica de software basada en agentes**. Cada cambio pasa por 7 fases y cada artefacto se revisa antes de avanzar. Las tareas simples pueden ir por un **carril rápido** que consolida las fases.
 
 ## Fuente de verdad
 - **Tickets = GitHub Issues.** La fase actual es la etiqueta `fase:*` del issue.
@@ -23,8 +23,16 @@ Este repositorio funciona como una **fábrica de software basada en agentes**. C
 | 6 | Despliegue | merge a `main` | — (pipeline determinista) | — | producción |
 | 7 | Operaciones | `fase:triage` | `/fabrica:triage N` | operaciones | diagnóstico + nuevo issue |
 
+## Carril rápido (tareas simples)
+
+Para tareas simples (landing, script, CRUD básico) usa `/fabrica:simple N` o la etiqueta `fase:simple`: consolida requisitos + diseño + plan + build en un solo paso, revisa con el agente ligero `revisor-rapido` (sonnet) y abre el PR.
+
+- Un solo artefacto: `docs/specs/issue-<N>/plan.md` con los requisitos embebidos (sin `diseno.md`).
+- Revisión ligera, máximo 1 ronda de corrección por artefacto.
+- Si el riesgo es `alto` (auth, pagos, datos personales, migraciones destructivas, infraestructura, `.github/`), NO uses este carril: ve por `fase:requisitos`.
+
 ## Reglas de la fábrica
-1. **Bucle de revisión obligatorio**: todo artefacto lo revisa el subagente `revisor` antes de avanzar. Máximo **2 iteraciones** de corrección; si sigue fallando, escalar a humano.
+1. **Bucle de revisión obligatorio**: todo artefacto lo revisa el subagente `revisor` antes de avanzar (en el carril rápido, `revisor-rapido`). Máximo **2 iteraciones** de corrección (1 en el carril rápido); si sigue fallando, escalar a humano.
 2. **Estado para el pipeline**: al terminar una fase escribe `.fabrica/estado.json`:
    `{"issue": N, "fase": "requisitos", "resultado": "ok" | "escalar", "riesgo": "bajo" | "medio" | "alto", "motivo": "..."}`
    El workflow (no tú) decide el siguiente paso leyendo este archivo.
