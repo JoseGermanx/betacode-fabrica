@@ -1,4 +1,4 @@
-<!-- fabrica-version: 1.3.0 — archivo gestionado por el plugin fabrica; no editar a mano (se sobrescribe al actualizar) -->
+<!-- fabrica-version: 1.3.1 — archivo gestionado por el plugin fabrica; no editar a mano (se sobrescribe al actualizar) -->
 # Fábrica de software (Betacode)
 
 Este repositorio funciona como una **fábrica de software basada en agentes**. Cada cambio pasa por 7 fases y cada artefacto se revisa antes de avanzar. Las tareas simples pueden ir por un **carril rápido** que consolida las fases.
