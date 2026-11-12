@@ -6,23 +6,16 @@ argument-hint: <número de issue>
 # Fase: build — issue #$ARGUMENTS
 
 1. Lee `plan.md`. Usa el subagente **implementador** para ejecutar las tareas en orden.
-2. Ejecuta la suite completa de tests al final.
-3. El revisor revisa el diff completo (`git diff main...HEAD`).
-4. Abre un PR `fabrica/$ARGUMENTS` → `main` con: `Closes #$ARGUMENTS`, tabla CA→tests, riesgo, y el veredicto del revisor.
+2. Ejecuta la suite completa de tests UNA sola vez, al final (salida mínima, reporta solo fallos).
+3. Abre un PR `fabrica/$ARGUMENTS` → `main` con: `Closes #$ARGUMENTS`, tabla CA→tests y riesgo. La revisión del código no se hace en esta fase: la hace `revision-pr.yml` al abrir el PR.
 
-## Reglas de ejecución (obligatorias, en local y en CI)
-1. Cada subagente (autor, revisor o corrector) se lanza con la herramienta **Agent en primer plano**: nunca con `run_in_background`, y esperas su resultado antes de seguir.
-2. **Cada ronda es un Agent nuevo.** Nunca uses `SendMessage` para continuar un agente anterior. En el prompt de la ronda pasa la ruta del artefacto y los hallazgos del revisor **literales**.
-3. El **revisor de cada ronda también es una instancia nueva** (independencia: no revisa con el contexto de la ronda anterior).
-4. No uses comandos en segundo plano (`&`, `nohup`) ni esperes eventos externos.
-5. **No cierres el turno sin haber escrito `.fabrica/estado.json`.** Es lo último que haces. Si algo falla, se agotan las rondas o no puedes terminar, escríbelo igual con `"resultado": "escalar"` y el motivo.
+## Reglas de ejecución
+Aplican las "Reglas de ejecución de cada fase" de `docs/conocimiento/fabrica.md`: agentes en primer plano, cada ronda es un Agent nuevo, sin comandos en segundo plano, y escribe `.fabrica/estado.json` antes de cerrar.
 
-## Bucle de revisión (obligatorio)
-1. Lanza el subagente **revisor** (plugin fabrica) sobre el artefacto producido.
-2. Si el veredicto es CAMBIOS: lanza un Agent **nuevo** del subagente **implementador** con los hallazgos literales para corregir, y luego un revisor **nuevo**. Máximo 2 rondas.
-3. Si tras 2 rondas sigue en CAMBIOS ⇒ `resultado: "escalar"` y comenta en el issue los hallazgos pendientes.
+## Revisión del código (en el PR, no en esta fase)
+La revisión del código la hace el workflow `revision-pr.yml` al abrir el PR, con el subagente **revisor** sobre `git diff main...HEAD`. No lances el revisor en esta fase. Si el PR pide cambios, lanza un Agent **nuevo** del subagente **implementador** con los hallazgos literales para corregir. Máximo 2 rondas; si sigue en CAMBIOS ⇒ `resultado: "escalar"` y comenta en el issue los hallazgos pendientes.
 
 ## Cierre
 - Commit y push a la rama `fabrica/$ARGUMENTS` (créala desde `main` si no existe). Nunca a `main`.
-- Comenta en el issue: resumen de 5 líneas + enlace al artefacto + veredicto del revisor.
+- Comenta en el issue: resumen de 5 líneas + enlace al PR. El veredicto del revisor queda en la revisión del PR (`revision-pr.yml`).
 - Escribe `.fabrica/estado.json` (formato en CLAUDE.md) con `"fase": "build"`. No lo commitees.

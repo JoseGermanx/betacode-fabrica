@@ -32,7 +32,7 @@ Para tareas simples (landing, script, CRUD básico) usa `/fabrica:simple N` o la
 - Si el riesgo es `alto` (auth, pagos, datos personales, migraciones destructivas, infraestructura, `.github/`), NO uses este carril: ve por `fase:requisitos`.
 
 ## Reglas de la fábrica
-1. **Bucle de revisión obligatorio**: todo artefacto lo revisa el subagente `revisor` antes de avanzar (en el carril rápido, `revisor-rapido`). Máximo **2 iteraciones** de corrección (1 en el carril rápido); si sigue fallando, escalar a humano.
+1. **Bucle de revisión obligatorio**: requisitos y diseño los revisa `revisor-opus`; plan y verificación, `revisor` (sonnet); con `riesgo: alto`, usa `revisor-opus`. El código de build lo revisa el PR (`revision-pr.yml`), no la fase. En el carril rápido, `revisor-rapido`. Máximo **2 iteraciones** de corrección (1 en requisitos y en el carril rápido); si sigue fallando, escalar a humano.
 2. **Estado para el pipeline**: al terminar una fase escribe `.fabrica/estado.json`:
    `{"issue": N, "fase": "requisitos", "resultado": "ok" | "escalar", "riesgo": "bajo" | "medio" | "alto", "motivo": "..."}`
    El workflow (no tú) decide el siguiente paso leyendo este archivo.
@@ -40,5 +40,12 @@ Para tareas simples (landing, script, CRUD básico) usa `/fabrica:simple N` o la
 4. Nunca desplegar, nunca hacer push a `main`, nunca tocar secretos ni `.env`.
 5. Si los requisitos son ambiguos, **pregunta en un comentario del issue** y marca `resultado: "escalar"`; no inventes.
 6. Commits pequeños, mensaje convencional (`feat:`, `fix:`, `docs:`, `test:`), referenciando `#N`.
+
+## Reglas de ejecución de cada fase
+1. Cada subagente (autor, revisor o corrector) se lanza con la herramienta **Agent en primer plano**: nunca en segundo plano, y esperas su resultado antes de seguir.
+2. **Cada ronda es un Agent nuevo**: nunca uses `SendMessage` para continuar un agente anterior. En el prompt de la ronda pasa la ruta del artefacto y los hallazgos del revisor **literales**.
+3. El revisor de cada ronda también es una instancia nueva (independencia: no revisa con el contexto de la ronda anterior).
+4. No uses comandos en segundo plano (`&`, `nohup`) ni esperes eventos externos.
+5. **No cierres el turno sin haber escrito `.fabrica/estado.json`.** Es lo último que haces. Si algo falla, se agotan las rondas o no puedes terminar, escríbelo igual con `"resultado": "escalar"` y el motivo.
 
 > Los comandos de instalación, tests y lint de este proyecto están en el `CLAUDE.md` raíz.

@@ -39,9 +39,5 @@ PR `fabrica/$ARGUMENTS` → `main` con: `Closes #$ARGUMENTS`, tabla CA→tests, 
 ## 8. Cierre
 Escribe `.fabrica/estado.json` con `"fase": "build"`, `"resultado"` y `"riesgo"`. No lo commitees.
 
-## Reglas de ejecución (obligatorias, en local y en CI)
-1. Cada subagente se lanza con la herramienta **Agent en primer plano**: nunca con `run_in_background`, y esperas su resultado antes de seguir.
-2. **Cada ronda es un Agent nuevo.** Nunca uses `SendMessage` para continuar un agente anterior. En el prompt de la ronda pasa la ruta del artefacto y los hallazgos del revisor **literales**.
-3. El **revisor de cada ronda también es una instancia nueva** (independencia: no revisa con el contexto de la ronda anterior).
-4. No uses comandos en segundo plano (`&`, `nohup`) ni esperes eventos externos.
-5. **No cierres el turno sin haber escrito `.fabrica/estado.json`.** Es lo último que haces. Si algo falla o no puedes terminar, escríbelo igual con `"resultado": "escalar"` y el motivo.
+## Reglas de ejecución
+Aplican las "Reglas de ejecución de cada fase" de `docs/conocimiento/fabrica.md`: agentes en primer plano, cada ronda es un Agent nuevo, sin comandos en segundo plano, y escribe `.fabrica/estado.json` antes de cerrar.
