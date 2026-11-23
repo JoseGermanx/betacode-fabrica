@@ -86,6 +86,15 @@ Todos los issues entran por `/fabrica:spec N` (etiqueta `fase:spec`), que produc
 2. En el VPS y en tus computadoras, ejecuta `/plugin marketplace update betacode`. Los agentes y skills nuevos quedan disponibles al instante en todos los repos.
 3. En cada repo, `/fabrica:init <repo>` detecta `actualizacion` y refresca `fabrica.md`.
 
+### Migrar repos desde la 1.x a la 2.0.0
+
+La 2.0.0 es un cambio incompatible: se eliminaron las fases `requisitos`, `diseno`, `plan` y el carril `simple`, y todo se unificó en `fase:spec`. Al ejecutar `/fabrica:init <repo>` en un repo ya instalado, `fabrica.md` se actualiza solo, pero hay que limpiar a mano lo siguiente:
+
+- **Plantillas viejas:** borra `docs/specs/_plantillas/{requisitos,diseno,plan}.md`. `init` no sobrescribe esa carpeta, así que solo añade `spec.md`.
+- **Etiquetas viejas:** elimina `fase:requisitos`, `fase:diseno`, `fase:plan` y `fase:simple` (`gh label delete <nombre>`). Vuelve a ejecutar `scripts/crear-etiquetas.sh` para dejar las vigentes.
+- **Issues en curso:** reetiquétalos con `fase:spec`. Con una etiqueta antigua, el workflow `fabrica.yml` falla con "Etiqueta desconocida".
+- **Workflows (`--ci`):** `init` no pisa `.github/` existente. Copia a mano el `fabrica.yml` nuevo desde `plugins/fabrica/plantilla/.github/workflows/`.
+
 ## Notas
 - **Sesión lobby vs. sesión del repo:** Claude carga el `CLAUDE.md` y los settings de la carpeta donde **arranca**. Por eso `init` abre una ventana nueva en el repo en vez de trabajar desde el lobby.
 - **Modo CI (`--ci`)**: los workflows cargan el plugin con `plugin_marketplaces` y `plugins` de `claude-code-action`. Define la variable `FABRICA_MARKETPLACE` en el repo o en la organización con la URL `.git` de este repo. Requisitos (secrets, runner, environment `produccion`): ver el kit anterior. Runners self-hosted, solo en repos privados.
