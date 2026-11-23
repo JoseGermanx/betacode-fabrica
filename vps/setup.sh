@@ -57,6 +57,6 @@ cat <<'MSG'
 4) Sesión lobby persistente (si systemctl --user falla con sudo -iu, entra con: machinectl shell fabrica@):
      systemctl --user daemon-reload && systemctl --user enable --now claude-remoto
      → En la app Claude del móvil: Code → aparece la sesión del VPS.
-5) Monitor de producción (fase 7):
+5) Monitor de producción (fase 5):
      crontab -e   →   */5 * * * * REPO=<usuario>/<repo> ~/monitor.sh >> ~/monitor.log 2>&1
 MSG

@@ -7,7 +7,7 @@
     {
       "name": "fabrica",
       "source": "./plugins/fabrica",
-      "description": "Fábrica de software con agentes: 7 fases, revisor, puertas humanas y bootstrap de repos (/fabrica:init)."
+      "description": "Fábrica de software con agentes: 5 fases en carril único, revisor adaptado al riesgo, puertas humanas y bootstrap de repos (/fabrica:init)."
     }
   ],
   "description": "Plugins de Betacode: fábrica de software con agentes."

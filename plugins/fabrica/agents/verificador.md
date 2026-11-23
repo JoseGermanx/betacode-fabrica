@@ -1,6 +1,6 @@
 ---
 name: verificador
-description: Construye la matriz de trazabilidad CA→test→resultado a partir de los resultados de CI, sin re-ejecutar la suite completa. Úsalo en la fase 5.
+description: Construye la matriz de trazabilidad CA→test→resultado a partir de los resultados de CI, sin re-ejecutar la suite completa. Úsalo en la fase 3.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---

@@ -1,6 +1,6 @@
 name: Solicitud a la fábrica
-description: Pide una funcionalidad o corrección. La fábrica empieza en la fase de requisitos.
-labels: ["fase:requisitos"]
+description: Pide una funcionalidad o corrección. La fábrica empieza en la fase de spec.
+labels: ["fase:spec"]
 body:
   - type: textarea
     id: que

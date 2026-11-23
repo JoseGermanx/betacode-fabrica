@@ -1,4 +1,4 @@
-# Fase 6: pipeline DETERMINISTA. Ningún agente despliega.
+# Fase 4: pipeline DETERMINISTA. Ningún agente despliega.
 # Puerta humana: configura el environment "produccion" con "Required reviewers" → apruebas desde la app de GitHub.
 name: Deploy
 on:

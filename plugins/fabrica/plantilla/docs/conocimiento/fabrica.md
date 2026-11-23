@@ -1,12 +1,12 @@
-<!-- fabrica-version: 1.3.1 — archivo gestionado por el plugin fabrica; no editar a mano (se sobrescribe al actualizar) -->
+<!-- fabrica-version: 2.0.0 — archivo gestionado por el plugin fabrica; no editar a mano (se sobrescribe al actualizar) -->
 # Fábrica de software (Betacode)
 
-Este repositorio funciona como una **fábrica de software basada en agentes**. Cada cambio pasa por 7 fases y cada artefacto se revisa antes de avanzar. Las tareas simples pueden ir por un **carril rápido** que consolida las fases.
+Este repositorio funciona como una **fábrica de software basada en agentes** con un único carril de 5 fases. El rigor de la especificación, del revisor y de las puertas humanas se adapta automáticamente al **riesgo** de cada cambio.
 
 ## Fuente de verdad
 - **Tickets = GitHub Issues.** La fase actual es la etiqueta `fase:*` del issue.
 - **Artefactos** de cada issue viven en `docs/specs/issue-<N>/` en la rama `fabrica/<N>`:
-  `requisitos.md` → `diseno.md` → `plan.md` → código + PR.
+  `spec.md` → código + PR.
 - **Base de conocimiento** (leer SIEMPRE antes de trabajar): `docs/conocimiento/`
   - `estandares.md` — convenciones de código
   - `seguridad.md` — políticas de seguridad (no negociables)
@@ -15,28 +15,22 @@ Este repositorio funciona como una **fábrica de software basada en agentes**. C
 ## Fases
 | # | Fase | Etiqueta | Skill | Agente principal | Salida |
 |---|------|----------|-------|------------------|--------|
-| 1 | Requisitos | `fase:requisitos` | `/fabrica:requisitos N` | analista-requisitos | requisitos.md |
-| 2 | Diseño | `fase:diseno` | `/fabrica:diseno N` | arquitecto | diseno.md |
-| 3 | Plan | `fase:plan` | `/fabrica:plan N` | planificador | plan.md + sub-issues |
-| 4 | Build | `fase:build` | `/fabrica:construir N` | implementador | commits + PR |
-| 5 | Verificación | (CI + `/verificar N`) | `/fabrica:verificar N` | verificador | informe en el PR |
-| 6 | Despliegue | merge a `main` | — (pipeline determinista) | — | producción |
-| 7 | Operaciones | `fase:triage` | `/fabrica:triage N` | operaciones | diagnóstico + nuevo issue |
-
-## Carril rápido (tareas simples)
-
-Para tareas simples (landing, script, CRUD básico) usa `/fabrica:simple N` o la etiqueta `fase:simple`: consolida requisitos + diseño + plan + build en un solo paso, revisa con el agente ligero `revisor-rapido` (sonnet) y abre el PR.
-
-- Un solo artefacto: `docs/specs/issue-<N>/plan.md` con los requisitos embebidos (sin `diseno.md`).
-- Revisión ligera, máximo 1 ronda de corrección por artefacto.
-- Si el riesgo es `alto` (auth, pagos, datos personales, migraciones destructivas, infraestructura, `.github/`), NO uses este carril: ve por `fase:requisitos`.
+| 1 | Spec | `fase:spec` | `/fabrica:spec N` | especificador | `spec.md` + checklist/sub-issues |
+| 2 | Build | `fase:build` | `/fabrica:construir N` | implementador | commits + PR |
+| 3 | Verificación | (CI + `/verificar N`) | `/fabrica:verificar N` | verificador | informe en el PR |
+| 4 | Despliegue | merge a `main` | — (pipeline determinista) | — | producción |
+| 5 | Operaciones | `fase:triage` | `/fabrica:triage N` | operaciones | diagnóstico + nuevo issue |
 
 ## Reglas de la fábrica
-1. **Bucle de revisión obligatorio**: requisitos y diseño los revisa `revisor-opus`; plan y verificación, `revisor` (sonnet); con `riesgo: alto`, usa `revisor-opus`. El código de build lo revisa el PR (`revision-pr.yml`), no la fase. En el carril rápido, `revisor-rapido`. Máximo **2 iteraciones** de corrección (1 en requisitos y en el carril rápido); si sigue fallando, escalar a humano.
+1. **Bucle de revisión obligatorio (adaptado al riesgo)**:
+   - En `spec`: `riesgo: bajo` usa `revisor-rapido` (máx. **1 iteración**); `riesgo: medio` usa `revisor` (máx. **2 iteraciones**); `riesgo: alto` usa `revisor-opus` (máx. **2 iteraciones**).
+   - En `verificacion` y `operaciones`: usa `revisor` (o `revisor-opus` si `riesgo: alto`), máx. **2 iteraciones**.
+   - El código de `build` lo revisa el PR (`revision-pr.yml`), no la fase.
+   - Si tras el máximo de iteraciones sigue fallando, escalar a humano.
 2. **Estado para el pipeline**: al terminar una fase escribe `.fabrica/estado.json`:
-   `{"issue": N, "fase": "requisitos", "resultado": "ok" | "escalar", "riesgo": "bajo" | "medio" | "alto", "motivo": "..."}`
+   `{"issue": N, "fase": "spec", "resultado": "ok" | "escalar", "riesgo": "bajo" | "medio" | "alto", "motivo": "..."}`
    El workflow (no tú) decide el siguiente paso leyendo este archivo.
-3. **Riesgo alto** (auth, pagos, datos personales, migraciones destructivas, infraestructura, cambios en `.github/`) ⇒ `riesgo: "alto"`. Un humano debe aprobar.
+3. **Riesgo alto** (auth, pagos, datos personales, migraciones destructivas, infraestructura, cambios en `.github/`) ⇒ `riesgo: "alto"`. Un humano debe aprobar antes de pasar a `fase:build`.
 4. Nunca desplegar, nunca hacer push a `main`, nunca tocar secretos ni `.env`.
 5. Si los requisitos son ambiguos, **pregunta en un comentario del issue** y marca `resultado: "escalar"`; no inventes.
 6. Commits pequeños, mensaje convencional (`feat:`, `fix:`, `docs:`, `test:`), referenciando `#N`.

@@ -25,9 +25,8 @@ Este repo es a la vez un **marketplace** y el **plugin `fabrica`**. Se instala u
 └──────────────────────────────────────────────────────────────────────────┘
             ▼
 ┌─ 3. Trabajo diario en la sesión del repo ────────────────────────────────┐
-│ /fabrica:requisitos N → diseno → plan → construir → verificar             │
-│ /fabrica:simple N      → carril rápido (tareas simples, un solo paso)     │
-│ (o automático vía GitHub Actions si se instaló con --ci)                  │
+│ /fabrica:spec N → construir → verificar                                  │
+│ (carril único adaptado al riesgo; o automático vía Actions con --ci)     │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -46,9 +45,9 @@ Este repo es a la vez un **marketplace** y el **plugin `fabrica`**. Se instala u
 | `.github/`, `scripts/deploy.sh` | proyecto | Solo con `--ci` y sin sobrescribir lo que ya tengas. |
 | Etiquetas `fase:*` | GitHub | Se crean si el repo tiene remoto. |
 
-### Carril rápido para tareas simples
+### Carril único adaptado al riesgo
 
-Para tareas simples (una landing, un script, un CRUD básico) no hace falta pasar por las 7 fases: usa `/fabrica:simple N` o la etiqueta `fase:simple`. Consolida requisitos + diseño + plan + build en un solo paso, revisa con un agente ligero y abre el PR. Si la tarea toca auth, pagos, datos personales, migraciones destructivas, infraestructura o `.github/`, usa el flujo estándar (`fase:requisitos`).
+Todos los issues entran por `/fabrica:spec N` (etiqueta `fase:spec`), que produce un único `spec.md` con intención, criterios de aceptación, riesgo, diseño proporcional y plan de tareas. El rigor se adapta automáticamente al riesgo: `bajo` usa `revisor-rapido` (máx. 1 ronda), `medio` usa `revisor` (máx. 2 rondas) y `alto` (auth, pagos, datos personales, migraciones destructivas, infraestructura o `.github/`) usa `revisor-opus` y activa una puerta humana antes de pasar a `fase:build`.
 
 ### Casos que resuelve
 
@@ -78,7 +77,7 @@ Para tareas simples (una landing, un script, un CRUD básico) no hace falta pasa
 
 1. App Claude → **Code** → sesión *lobby* del VPS.
 2. Escribe: *"Clona betacode/crm-whatsapp y mételo a la fábrica"* o *"Proyecto nuevo: landing para AFM, Astro"*.
-3. Cuando termine, aparece una **sesión nueva con el nombre del repo**. Ábrela y trabaja con `/fabrica:requisitos N`, etc.
+3. Cuando termine, aparece una **sesión nueva con el nombre del repo**. Ábrela y trabaja con `/fabrica:spec N`, etc.
 4. Revisa el PR `fabrica/instalacion` en la app de GitHub y haz merge.
 
 ## Actualizar la fábrica

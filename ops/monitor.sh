@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fase 7: comprueba URLs de producción; si una falla 2 veces seguidas abre un issue de incidente
+# Fase 5: comprueba URLs de producción; si una falla 2 veces seguidas abre un issue de incidente
 # (que dispara automáticamente al agente de operaciones vía la etiqueta fase:triage).
 # Uso (cron): REPO=usuario/repo URLS_FILE=~/urls.txt ~/monitor.sh
 set -uo pipefail

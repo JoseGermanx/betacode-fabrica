@@ -1,4 +1,4 @@
-# Fase 5 (parte agéntica): revisor independiente + matriz de trazabilidad en cada PR de la fábrica.
+# Fase 3 (parte agéntica): revisor independiente + matriz de trazabilidad en cada PR de la fábrica.
 name: Fábrica — revisión y verificación del PR
 on:
   pull_request:

@@ -1,13 +1,13 @@
 ---
 name: triage
-description: Fase 7 de la fábrica: diagnostica un incidente de producción y genera un ticket de corrección.
+description: Fase 5 de la fábrica: diagnostica un incidente de producción y genera un ticket de corrección.
 argument-hint: <número de issue>
 ---
 # Fase: operaciones — issue #$ARGUMENTS
 
 1. Lee el issue de incidente y sus datos adjuntos.
 2. Usa el subagente **operaciones** para diagnosticar.
-3. Si la corrección es clara, crea un issue nuevo con la etiqueta `fase:requisitos` enlazado al incidente.
+3. Si la corrección es clara, crea un issue nuevo con la etiqueta `fase:spec` enlazado al incidente.
 
 ## Reglas de ejecución
 Aplican las "Reglas de ejecución de cada fase" de `docs/conocimiento/fabrica.md`: agentes en primer plano, cada ronda es un Agent nuevo, sin comandos en segundo plano, y escribe `.fabrica/estado.json` antes de cerrar.

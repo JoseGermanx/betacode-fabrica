@@ -5,7 +5,7 @@ argument-hint: <url | usuario/repo | nuevo <nombre> "descripción"> [--ci]
 ---
 # /fabrica:init $ARGUMENTS
 
-Objetivo: dejar el repo listo para usar `/fabrica:requisitos N` y el resto de fases, sin romper nada de lo que ya existe.
+Objetivo: dejar el repo listo para usar `/fabrica:spec N` y el resto de fases, sin romper nada de lo que ya existe.
 Los repos viven en `~/repos/<nombre>`. El copiado de archivos lo hace un **script determinista**; tú solo haces las partes que requieren criterio.
 
 ## 1. Obtener el repo
@@ -40,7 +40,7 @@ Si el repo ya tenía `.claude/agents` o `.claude/skills` propios, comprueba que 
 - **Repo nuevo:**
   `git -C <dir> add -A && git -C <dir> commit -m "chore: proyecto inicial con fábrica de software"`
   y luego `gh repo create <nombre> --private --source <dir> --push` (siempre privado salvo que el usuario diga lo contrario).
-  Después crea el **issue #1** con la descripción del proyecto como solicitud (`gh issue create --label fase:requisitos ...`): la estructura inicial del proyecto también pasa por la fábrica.
+  Después crea el **issue #1** con la descripción del proyecto como solicitud (`gh issue create --label fase:spec ...`): la estructura inicial del proyecto también pasa por la fábrica.
 - **Repo existente:** rama `fabrica/instalacion`, commit `chore: instalar fábrica de software`, push de la rama y PR con un resumen de lo hecho y de las contradicciones encontradas. Nunca a `main` directamente.
 
 ## 5. Sesión dedicada (para el móvil)
@@ -55,4 +55,4 @@ Así aparecerá en la app de Claude como una sesión nueva, ya situada en el rep
 - Repo y ruta, modo detectado y qué se creó, importó u omitió.
 - Contradicciones resueltas o pendientes.
 - PR o issue creado (enlace).
-- Siguiente paso: "abre la sesión `<nombre>` en la app y ejecuta `/fabrica:requisitos <N>`".
+- Siguiente paso: "abre la sesión `<nombre>` en la app y ejecuta `/fabrica:spec <N>`".

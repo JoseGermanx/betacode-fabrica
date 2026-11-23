@@ -1,6 +1,6 @@
 ---
 name: verificar
-description: Fase 5 de la fábrica: verifica que cada criterio de aceptación tiene tests en verde y que pasan los escaneos de seguridad.
+description: Fase 3 de la fábrica: verifica que cada criterio de aceptación tiene tests en verde y que pasan los escaneos de seguridad.
 argument-hint: <número de issue>
 ---
 # Fase: verificacion — issue #$ARGUMENTS

@@ -1,11 +1,11 @@
 ---
 name: construir
-description: Fase 4 de la fábrica: implementa plan.md con TDD, un commit por tarea, y abre el PR.
+description: Fase 2 de la fábrica: implementa spec.md con TDD, un commit por tarea, y abre el PR.
 argument-hint: <número de issue>
 ---
 # Fase: build — issue #$ARGUMENTS
 
-1. Lee `plan.md`. Usa el subagente **implementador** para ejecutar las tareas en orden.
+1. Lee `docs/specs/issue-$ARGUMENTS/spec.md`. Usa el subagente **implementador** para ejecutar las tareas en orden.
 2. Ejecuta la suite completa de tests UNA sola vez, al final (salida mínima, reporta solo fallos).
 3. Abre un PR `fabrica/$ARGUMENTS` → `main` con: `Closes #$ARGUMENTS`, tabla CA→tests y riesgo. La revisión del código no se hace en esta fase: la hace `revision-pr.yml` al abrir el PR.
 
